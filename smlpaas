@@ -26,6 +26,7 @@ else {
 
 class Constants {
     static final CONFIG_FILE_NAME = ".smlpaas"
+	static final PROFILES = ["tomcat7", "jar", "wildfly8", "jboss7"]
 }
 
 def deployCMD(String[] args) {	
@@ -105,6 +106,10 @@ def setupCMD(String[] args) {
 		def ip = args[1]
 		def profile = args.length >= 3 ? args[2] : "tomcat7"
 		def runParams = args.length >= 4 ? args[3] : ""
+		
+		if (!(profile in PROFILES)) {
+			println "Unknown profile: $profile, available profiles: $PROFILES"
+		}
 		
 		File dir = new File(dirName)
 		if (dir.exists() && dir.isDirectory()) {
