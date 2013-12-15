@@ -1,0 +1,149 @@
+#!/usr/bin/env groovy
+import static Constants.*
+
+if (args) {
+	switch(args[0]) {
+		case "deploy":
+			deployCMD(args.drop(1))
+			break
+		case "setup":
+			setupCMD(args.drop(1))
+			break
+		case "restart":
+			restartCMD(args.drop(1))
+			break
+		case "tail":
+			tailCMD(args.drop(1))
+			break
+		default:
+			print "Unknown command: $args[0]"
+			break
+	}
+}
+else {
+	println "usage\n smlpaas [command]"
+}
+
+class Constants {
+    static final CONFIG_FILE_NAME = ".smlpaas"
+}
+
+def deployCMD(String[] args) {	
+	if (args.length != 1) {
+		println "usage\n smlpaas deploy WAR_FILE"
+	} else {
+		String pathToWar = getFullPath(args[0])
+		
+		String fileName = new File(pathToWar).name
+		
+		String serverURL = figureServer(pathToWar)
+		
+		if (new File(pathToWar).exists()) {
+			println "Uploading $pathToWar"
+			def copyCMD =  "rsync --partial --progress --rsh=ssh $pathToWar app@$serverURL:dropbox/ROOT.war"
+			runAndWaitCMD(copyCMD)
+			
+			def deployCMD = "ssh -n -f app@$serverURL \"scripts/redeploy.sh\""
+			runAndWaitCMD(deployCMD)
+			
+			println "$pathToWar deployed"
+		} else {
+			println "The WAR file  ($pathToWar) does not exist"
+		}
+	}
+}
+
+def getFullPath(String path) {
+	if (!path.startsWith("/")) {
+		return new File(path).canonicalPath
+	}
+	else {
+		return path
+	}
+}
+
+def figureServer(String path) {
+	File file = new File(path)
+	while (file != null) {
+		if (file.isDirectory()) {
+			File config = new File(CONFIG_FILE_NAME, file)
+			if (config.exists()) {
+				def props = new Properties()
+				config.withInputStream { 
+  			  		stream -> props.load(stream) 
+				}
+				
+				return props["url"]
+			}
+		}
+		file = file.parentFile
+	}
+	
+	System.err.println "Could not figure out server config for file $path. Maybe do smlpaas config first?"
+	System.exit(-1)
+}
+
+def setupCMD(String[] args) {	
+	if (args.length != 2) {
+		println "usage\n smlpaas setup DIRECTORY SERVER_IP"
+	} else {
+		def dirName = args[0]
+		def ip = args[1]
+		File dir = new File(dirName)
+		if (dir.exists() && dir.isDirectory()) {
+			File configFile = new File(CONFIG_FILE_NAME, dir)
+			configFile.delete()
+			configFile << "url: $ip"
+			println "Setup for server $ip at $dirName completed"
+		} else {
+			println "ERROR $dirName does not exist or is not a directory"
+		}
+	}
+}
+
+def restartCMD(String[] args) {
+	def serverURL
+	if (args.length == 0) {
+		serverURL = figureServer(".")
+	} else {
+		serverURL = figureServer(args[0])
+	}
+	
+	restart(serverURL)
+}
+
+
+def tailCMD(String[] args) {
+	def serverURL
+	if (args.length == 0) {
+		serverURL = figureServer(".")
+	} else {
+		serverURL = figureServer(args[0])
+	}
+	String tailCMD = "ssh app@$serverURL \"scripts/tail.sh\""
+	runCMD(tailCMD)
+		
+	pause()
+}
+
+def restart(String serverURL) {
+	String restartCMD = "ssh -n -f app@$serverURL \"scripts/restart.sh\""
+	runAndWaitCMD(restartCMD)
+}
+
+def runCMD(String cmd) {
+	def process = cmd.execute()
+	process.consumeProcessOutput(System.out, System.err)
+	return process
+}
+
+def runAndWaitCMD(String cmd) {
+	def process = runCMD(cmd)
+	process.waitFor()
+}
+
+def pause() {
+	System.in.withReader {
+		println it.readLine()
+	}
+}
