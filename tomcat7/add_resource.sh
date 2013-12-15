@@ -4,7 +4,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 . $DIR/env.sh
 
-rm -rf $TOMCAT_HOME/webapps/ROOT*
+DEST=$TOMCAT_HOME/$2
+FILE=$DROPBOX/$1
 
-cp $DROPBOX/FILE $TOMCAT_HOME/webapps/ROOT.war
+mkdir -p $DEST
 
+cp $FILE $DEST
+rm $FILE

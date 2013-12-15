@@ -6,5 +6,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 rm -rf $JAR_HOME/ROOT.jar
 
-cp $JAR_FILE $JAR_HOME/ROOT.jar
+cp $DROPBOX/FILE $JAR_HOME/ROOT.jar
 
