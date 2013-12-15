@@ -41,7 +41,7 @@ def deployCMD(String[] args) {
 		
 		if (new File(pathToWar).exists()) {
 			println "Stoping server"
-			def stopCMD = "ssh app@$serverURL \"scripts/stop.sh\""
+			def stopCMD = "ssh app@$serverURL \"scripts/${config.profile}/stop.sh\""
 			runAndWaitCMD(stopCMD)
 			
 			println "Uploading $pathToWar"
@@ -49,11 +49,11 @@ def deployCMD(String[] args) {
 			runAndWaitCMD(copyCMD)
 			
 			println "Deploying WAR"
-			def deployCMD = "ssh app@$serverURL \"scripts/deploy.sh\""
+			def deployCMD = "ssh app@$serverURL \"scripts/${config.profile}/deploy.sh\""
 			runAndWaitCMD(deployCMD)
 			
 			println "Starting server"
-			def startCMD = "ssh app@$serverURL scripts/start.sh \"$config.runParams\""
+			def startCMD = "ssh app@$serverURL scripts/${config.profile}/start.sh \"$config.runParams\""
 			println startCMD
 			runAndWaitCMD(startCMD)
 			
@@ -142,14 +142,14 @@ def tailCMD(String[] args) {
 		config = figureServer(args[0])
 	}
 	String serverURL = config.url
-	String tailCMD = "ssh app@$serverURL \"scripts/tail.sh\""
+	String tailCMD = "ssh app@$serverURL \"scripts/${config.profile}/tail.sh\""
 	runCMD(tailCMD)
 		
 	pause()
 }
 
 def restart(String serverURL) {
-	String restartCMD = "ssh -n -f app@$serverURL \"scripts/restart.sh\""
+	String restartCMD = "ssh -n -f app@$serverURL \"scripts/${config.profile}/restart.sh\""
 	runAndWaitCMD(restartCMD)
 }
 
