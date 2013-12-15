@@ -24,6 +24,9 @@ if (args) {
 		case "start":
 			startCMD(args.drop(1))
 			break
+		case "addResource":
+			addResourceCMD(args.drop(1))
+			break
 		default:
 			println "Unknown command: '${args[0]}'"
 			break
@@ -43,9 +46,7 @@ def deployCMD(String[] args) {
 		println "usage\n smlpaas deploy FILE"
 	} else {
 		String pathToWar = getFullPath(args[0])
-		
-		String fileName = new File(pathToWar).name
-		
+				
 		Config config = figureServer(pathToWar)
 		String serverURL = config.url
 		
@@ -158,6 +159,29 @@ def tailCMD(String[] args) {
 		runCMD(tailCMD)
 		
 		pause()})
+}
+
+def addResourceCMD(String[] args) {
+	if (args.length != 2) {
+		println "Usage: smlpaas addResource FILE TARGET"
+		} else {
+		def pathToFile = new File(args[0]).absolutePath
+		
+		findConfigAndRun([pathToFile].toArray(), {Config config -> 
+			
+			def fileName = new File(pathToFile).name
+			def target = args[1]
+			def serverURL = config.url
+			
+			println "Uploading $pathToFile"
+			def copyCMD =  "rsync --partial --progress --rsh=ssh $pathToFile app@$serverURL:dropbox/$fileName"
+			runAndWaitCMD(copyCMD)
+		
+			println "Add resource"
+			def addResourceCMD = "ssh app@$serverURL scripts/${config.profile}/add_resource.sh $fileName $target"
+			runAndWaitCMD(addResourceCMD)
+		})
+	}
 }
 
 def findConfigAndRun(args, Closure c) {
