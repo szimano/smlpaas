@@ -4,5 +4,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 . $DIR/env.sh
 
-$DIR/stop.sh
-$DIR/start.sh
+rm -rf $JAR_HOME/ROOT.jar
+
+cp $JAR_FILE $JAR_HOME/ROOT.jar
+
