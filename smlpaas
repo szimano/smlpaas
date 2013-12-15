@@ -18,6 +18,9 @@ if (args) {
 		case "stop":
 			stopCMD(args.drop(1))
 			break
+		case "stopAll":
+			stopAllCMD(args.drop(1))
+			break
 		case "start":
 			startCMD(args.drop(1))
 			break
@@ -32,7 +35,7 @@ else {
 
 class Constants {
     static final CONFIG_FILE_NAME = ".smlpaas"
-	static final PROFILES = ["tomcat7", "jar", "wildfly8", "jboss7"]
+	static final PROFILES = ["tomcat7", "jar"/*, "wildfly8", "jboss7"*/]
 }
 
 def deployCMD(String[] args) {	
@@ -135,6 +138,16 @@ def stopCMD(String[] args) {
 	findConfigAndRun(args, {Config config -> stop(config)})
 }
 
+def stopAllCMD(String[] args) {
+	findConfigAndRun(args, {Config config -> 
+			PROFILES.each {
+				def newConfig = config.clone()
+				newConfig.profile = it
+				stop(newConfig)
+			}
+		})
+}
+
 def startCMD(String[] args) {
 	findConfigAndRun(args, {Config config -> start(config)})
 }
@@ -193,6 +206,7 @@ def pause() {
 }
 
 @groovy.transform.Canonical
+@groovy.transform.AutoClone
 class Config {
 def url
 def profile
