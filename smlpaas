@@ -36,17 +36,28 @@ def deployCMD(String[] args) {
 		
 		String fileName = new File(pathToWar).name
 		
-		String serverURL = figureServer(pathToWar)
+		Config config = figureServer(pathToWar)
+		String serverURL = config.url
 		
 		if (new File(pathToWar).exists()) {
+			println "Stoping server"
+			def stopCMD = "ssh app@$serverURL \"scripts/stop.sh\""
+			runAndWaitCMD(stopCMD)
+			
 			println "Uploading $pathToWar"
 			def copyCMD =  "rsync --partial --progress --rsh=ssh $pathToWar app@$serverURL:dropbox/ROOT.war"
 			runAndWaitCMD(copyCMD)
 			
-			def deployCMD = "ssh -n -f app@$serverURL \"scripts/redeploy.sh\""
+			println "Deploying WAR"
+			def deployCMD = "ssh app@$serverURL \"scripts/deploy.sh\""
 			runAndWaitCMD(deployCMD)
 			
-			println "$pathToWar deployed"
+			println "Starting server"
+			def startCMD = "ssh app@$serverURL scripts/start.sh \"$config.runParams\""
+			println startCMD
+			runAndWaitCMD(startCMD)
+			
+			println "$pathToWar deployed and server started"
 		} else {
 			println "The WAR file  ($pathToWar) does not exist"
 		}
@@ -73,7 +84,10 @@ def figureServer(String path) {
   			  		stream -> props.load(stream) 
 				}
 				
-				return props["url"]
+				def configuration = new Config(url: props["url"], profile: props["profile"], runParams: props["runParams"])
+				println "Using config: $configuration from $config.name"
+				
+				return configuration
 			}
 		}
 		file = file.parentFile
@@ -84,16 +98,22 @@ def figureServer(String path) {
 }
 
 def setupCMD(String[] args) {	
-	if (args.length != 2) {
-		println "usage\n smlpaas setup DIRECTORY SERVER_IP"
+	if (args.length < 2 || args.length > 4) {
+		println "usage\n smlpaas setup DIRECTORY SERVER_IP [PROFILE] [RUN_PARAMS]"
 	} else {
 		def dirName = args[0]
 		def ip = args[1]
+		def profile = args.length >= 3 ? args[2] : "tomcat7"
+		def runParams = args.length >= 4 ? args[3] : ""
+		
 		File dir = new File(dirName)
 		if (dir.exists() && dir.isDirectory()) {
 			File configFile = new File(CONFIG_FILE_NAME, dir)
 			configFile.delete()
-			configFile << "url: $ip"
+			configFile << "url: $ip\n"
+			configFile << "profile: $profile\n"
+			configFile << "runParams: $runParams\n"
+			
 			println "Setup for server $ip at $dirName completed"
 		} else {
 			println "ERROR $dirName does not exist or is not a directory"
@@ -102,24 +122,26 @@ def setupCMD(String[] args) {
 }
 
 def restartCMD(String[] args) {
-	def serverURL
+	def config
 	if (args.length == 0) {
-		serverURL = figureServer(".")
+		config = figureServer(".")
 	} else {
-		serverURL = figureServer(args[0])
+		config = figureServer(args[0])
 	}
+	String serverURL = config.url
 	
 	restart(serverURL)
 }
 
 
 def tailCMD(String[] args) {
-	def serverURL
+	def config
 	if (args.length == 0) {
-		serverURL = figureServer(".")
+		config = figureServer(".")
 	} else {
-		serverURL = figureServer(args[0])
+		config = figureServer(args[0])
 	}
+	String serverURL = config.url
 	String tailCMD = "ssh app@$serverURL \"scripts/tail.sh\""
 	runCMD(tailCMD)
 		
@@ -146,4 +168,11 @@ def pause() {
 	System.in.withReader {
 		println it.readLine()
 	}
+}
+
+@groovy.transform.Canonical
+class Config {
+def url
+def profile
+def runParams
 }
