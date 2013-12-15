@@ -16,7 +16,7 @@ if (args) {
 			tailCMD(args.drop(1))
 			break
 		default:
-			print "Unknown command: $args[0]"
+			println "Unknown command: '${args[0]}'"
 			break
 	}
 }
