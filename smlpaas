@@ -15,6 +15,12 @@ if (args) {
 		case "tail":
 			tailCMD(args.drop(1))
 			break
+		case "stop":
+			stopCMD(args.drop(1))
+			break
+		case "start":
+			startCMD(args.drop(1))
+			break
 		default:
 			println "Unknown command: '${args[0]}'"
 			break
@@ -31,7 +37,7 @@ class Constants {
 
 def deployCMD(String[] args) {	
 	if (args.length != 1) {
-		println "usage\n smlpaas deploy WAR_FILE"
+		println "usage\n smlpaas deploy FILE"
 	} else {
 		String pathToWar = getFullPath(args[0])
 		
@@ -41,22 +47,17 @@ def deployCMD(String[] args) {
 		String serverURL = config.url
 		
 		if (new File(pathToWar).exists()) {
-			println "Stoping server"
-			def stopCMD = "ssh app@$serverURL \"scripts/${config.profile}/stop.sh\""
-			runAndWaitCMD(stopCMD)
+			stop(config)
 			
 			println "Uploading $pathToWar"
-			def copyCMD =  "rsync --partial --progress --rsh=ssh $pathToWar app@$serverURL:dropbox/ROOT.war"
+			def copyCMD =  "rsync --partial --progress --rsh=ssh $pathToWar app@$serverURL:dropbox/FILE"
 			runAndWaitCMD(copyCMD)
 			
-			println "Deploying WAR"
+			println "Deploying FILE"
 			def deployCMD = "ssh app@$serverURL \"scripts/${config.profile}/deploy.sh\""
 			runAndWaitCMD(deployCMD)
 			
-			println "Starting server"
-			def startCMD = "ssh app@$serverURL scripts/${config.profile}/start.sh \"$config.runParams\""
-			println startCMD
-			runAndWaitCMD(startCMD)
+			start(config)
 			
 			println "$pathToWar deployed and server started"
 		} else {
@@ -127,35 +128,51 @@ def setupCMD(String[] args) {
 }
 
 def restartCMD(String[] args) {
-	def config
-	if (args.length == 0) {
-		config = figureServer(".")
-	} else {
-		config = figureServer(args[0])
-	}
-	String serverURL = config.url
-	
-	restart(serverURL)
+	findConfigAndRun(args, {Config config -> restart(config)})
 }
 
+def stopCMD(String[] args) {
+	findConfigAndRun(args, {Config config -> stop(config)})
+}
+
+def startCMD(String[] args) {
+	findConfigAndRun(args, {Config config -> start(config)})
+}
 
 def tailCMD(String[] args) {
+	findConfigAndRun(args, {Config config -> String serverURL = config.url
+		String tailCMD = "ssh app@$serverURL \"scripts/${config.profile}/tail.sh\""
+		runCMD(tailCMD)
+		
+		pause()})
+}
+
+def findConfigAndRun(args, Closure c) {
 	def config
 	if (args.length == 0) {
 		config = figureServer(".")
 	} else {
 		config = figureServer(args[0])
 	}
-	String serverURL = config.url
-	String tailCMD = "ssh app@$serverURL \"scripts/${config.profile}/tail.sh\""
-	runCMD(tailCMD)
-		
-	pause()
+	
+	c(config)
 }
 
-def restart(String serverURL) {
-	String restartCMD = "ssh -n -f app@$serverURL \"scripts/${config.profile}/restart.sh\""
-	runAndWaitCMD(restartCMD)
+def restart(Config config) {
+	stop(config)
+	start(config)
+}
+
+def stop(Config config) {
+	println "Stoping server"
+	def stopCMD = "ssh app@${config.url} \"scripts/${config.profile}/stop.sh\""
+	runAndWaitCMD(stopCMD)
+}
+
+def start(Config config) {
+	println "Starting server"
+	def startCMD = "ssh app@${config.url} scripts/${config.profile}/start.sh \"$config.runParams\""
+	runAndWaitCMD(startCMD)
 }
 
 def runCMD(String cmd) {
