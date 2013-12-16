@@ -3,15 +3,18 @@ import static Constants.*
 
 if (args) {
 	switch(args[0]) {
+		case "d":
 		case "deploy":
 			deployCMD(args.drop(1))
 			break
+		case "config":
 		case "setup":
 			setupCMD(args.drop(1))
 			break
 		case "restart":
 			restartCMD(args.drop(1))
 			break
+		case "t":
 		case "tail":
 			tailCMD(args.drop(1))
 			break
@@ -24,6 +27,7 @@ if (args) {
 		case "start":
 			startCMD(args.drop(1))
 			break
+		case "ar":
 		case "addResource":
 			addResourceCMD(args.drop(1))
 			break
@@ -113,7 +117,7 @@ def setupCMD(String[] args) {
 		def dirName = args[0]
 		def ip = args[1]
 		def profile = args.length >= 3 ? args[2] : "tomcat7"
-		def runParams = args.length >= 4 ? args[3] : ""
+		def runParams = args.length >= 4 ? args[3] : "-Xmx:1024m -Xms:1024m -XX:MaxPermSize:512m"
 		
 		if (!(profile in PROFILES)) {
 			println "Unknown profile: $profile, available profiles: $PROFILES"
