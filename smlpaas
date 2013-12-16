@@ -117,7 +117,7 @@ def setupCMD(String[] args) {
 		def dirName = args[0]
 		def ip = args[1]
 		def profile = args.length >= 3 ? args[2] : "tomcat7"
-		def runParams = args.length >= 4 ? args[3] : "-Xmx:1024m -Xms:1024m -XX:MaxPermSize:512m"
+		def runParams = args.length >= 4 ? args[3] : "-Xmx1024m -Xms1024m -XX:MaxPermSize=512m"
 		
 		if (!(profile in PROFILES)) {
 			println "Unknown profile: $profile, available profiles: $PROFILES"
