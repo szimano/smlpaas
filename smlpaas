@@ -27,6 +27,9 @@ if (args) {
 		case "addResource":
 			addResourceCMD(args.drop(1))
 			break
+		case "ssh":
+			sshCMD(args.drop(1))
+			break
 		default:
 			println "Unknown command: '${args[0]}'"
 			break
@@ -151,6 +154,10 @@ def stopAllCMD(String[] args) {
 
 def startCMD(String[] args) {
 	findConfigAndRun(args, {Config config -> start(config)})
+}
+
+def sshCMD(String[] args) {
+	findConfigAndRun(args, {Config config -> println "Type ssh app@${config.url}"})
 }
 
 def tailCMD(String[] args) {
