@@ -1,26 +1,25 @@
 package com.softwaremill.smlpaas
 
+import com.softwaremill.smlpaas.packets.ArchipelPacket
 import org.jivesoftware.smack.Connection
 import org.jivesoftware.smack.Roster
-import org.jivesoftware.smack.RosterListener
 import org.jivesoftware.smack.XMPPConnection
-import org.jivesoftware.smack.packet.IQ
-import org.jivesoftware.smack.packet.Presence
 
 class ArchipelClient extends Thread {
 
     private static shouldRun = true
+    public static final String PAAS_GROUP = "smlpaas"
 
     @Override
     void run() {
         while (shouldRun) {
-            try {Thread.sleep(100)} catch (Exception e) {}
+            try { Thread.sleep(100) } catch (Exception e) {}
         }
     }
 
     public static void main(String[] args) {
-        if (args.length != 3) {
-            System.err.println("Usage: USERNAME PASSWORD NEWNAME")
+        if (args.length < 3) {
+            System.err.println("Usage: USERNAME PASSWORD COMMAND")
             System.exit(-1)
         }
 
@@ -30,36 +29,38 @@ class ArchipelClient extends Thread {
 
         def username = args[0]
         def password = args[1]
-        def newVM = args[2]
 
         conn.login(username, password);
 
+        switch(args[2]) {
+            case "clone":
+                cloneVM(conn, args.drop(3))
+                break
+            case "list":
+                listVMs(conn)
+                break
+            default:
+                println "Unknown command: ${args[2]}"
+                break
+        }
+    }
+
+    static void cloneVM(Connection conn, String[] args) {
+        if (args.length != 1) {
+            println "Usage: USERNAME PASSWORD clone NEW_VM_NAME"
+        }
+
+        def newVM = args[0]
+
         String smlpaasID
 
-        conn.getRoster().entries.each {if (it.name == "smlpaas") smlpaasID = it.getUser()}
+        conn.getRoster().entries.each { if (it.name == "smlpaas") smlpaasID = it.getUser() }
 
-        conn.getRoster().setSubscriptionMode(Roster.SubscriptionMode.accept_all)
+        conn.getRoster().setSubscriptionMode(Roster.SubscriptionMode.manual)
 
-        conn.getRoster().addRosterListener(new RosterListener() {
-            @Override
-            void entriesAdded(Collection<String> addresses) {
-                // we'll just assume that this is our new server, not some random crap in which case we're just screwed
+        conn.addPacketListener(new SubscriptionListener(conn, newVM), new SubscriptionPacketFilter())
 
-                shouldRun = false
-            }
-
-            @Override
-            void entriesUpdated(Collection<String> addresses) {
-            }
-
-            @Override
-            void entriesDeleted(Collection<String> addresses) {
-            }
-
-            @Override
-            void presenceChanged(Presence presence) {
-            }
-        })
+        conn.getRoster().addRosterListener(new NewVMListener(conn, newVM, {shouldRun = false}))
 
         if (smlpaasID == null) {
             System.err.println("Cannot locate smlpaas")
@@ -74,25 +75,16 @@ class ArchipelClient extends Thread {
 
         conn.sendPacket(packet)
     }
-}
 
-class ArchipelPacket extends IQ {
+    static void listVMs(Connection conn) {
+        println "Name: ID"
+        println "========"
 
-    private final String source
-    private final String newName
-
-    ArchipelPacket(String source, String newName) {
-        this.newName = newName
-        this.source = source
-        setType(IQ.Type.SET)
-        setTo("sml.cumulushost.eu@xmpp.pacmanvps.com/sml.cumulushost.eu")
-        setPacketID("17755")
-    }
-
-    @Override
-    String getChildElementXML() {
-        return "<query xmlns=\"archipel:hypervisor:control\">" +
-                "<archipel action=\"clone\" jid=\"${source}\" name=\"${newName}\"/>" +
-                "</query>"
+        conn.getRoster().getEntries().each {
+            if (it.groups.find {it.name == PAAS_GROUP}) {
+                println "${it.name}: ${it.user}"
+            }
+        }
     }
 }
+
