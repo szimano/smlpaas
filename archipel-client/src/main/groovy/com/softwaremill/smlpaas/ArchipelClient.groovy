@@ -1,5 +1,4 @@
 package com.softwaremill.smlpaas
-
 import com.softwaremill.smlpaas.packets.ArchipelPacket
 import org.jivesoftware.smack.Chat
 import org.jivesoftware.smack.Connection
@@ -7,11 +6,14 @@ import org.jivesoftware.smack.MessageListener
 import org.jivesoftware.smack.Roster
 import org.jivesoftware.smack.XMPPConnection
 import org.jivesoftware.smack.packet.Message
+import org.jivesoftware.smack.util.Base64
 
 class ArchipelClient extends Thread {
 
     private static shouldRun = true
     public static final String PAAS_GROUP = "smlpaas"
+
+    static File configFile = new File(System.getProperty("user.home") + File.separator + ".smlpaas-archipel")
 
     @Override
     void run() {
@@ -21,32 +23,27 @@ class ArchipelClient extends Thread {
     }
 
     public static void main(String[] args) {
-        if (args.length < 3) {
-            System.err.println("Usage: USERNAME PASSWORD COMMAND")
+        if (args.length < 1) {
+            System.err.println("Usage: COMMAND")
             System.exit(-1)
         }
 
-        // Create a connection to the jabber.org server.
-        Connection conn = new XMPPConnection("xmpp.pacmanvps.com");
-        conn.connect();
-
-        def username = args[0]
-        def password = args[1]
-
-        conn.login(username, password);
-
-        switch(args[2]) {
+        switch (args[0]) {
+            case "setup":
+            case "config":
+                setup(args.drop(1))
+                break
             case "clone":
-                cloneVM(conn, args.drop(3))
+                cloneVM(args.drop(1))
                 break
             case "list":
-                listVMs(conn)
+                listVMs()
                 break
             case "start":
-                startVM(conn, args.drop(3))
+                startVM(args.drop(1))
                 break
             case "stop":
-                stopVM(conn, args.drop(3))
+                stopVM(args.drop(1))
                 break
             default:
                 println "Unknown command: ${args[2]}"
@@ -54,7 +51,47 @@ class ArchipelClient extends Thread {
         }
     }
 
-    static def startVM(Connection conn, String[] args) {
+    static Connection connect() {
+        if (!configFile.exists()) {
+            throw new RuntimeException("Config file ${configFile.absolutePath} does not exist. Run setup first")
+        }
+
+        Properties p = new Properties()
+
+        configFile.withInputStream {
+            p.load(it)
+        }
+
+        def username = p.getProperty("username")
+        def password = new String(Base64.decode(p.getProperty("password")))
+        def server = p.getProperty("server")
+
+        Connection conn = new XMPPConnection(server);
+        conn.connect();
+
+        conn.login(username, password)
+
+        return conn
+    }
+
+    static def setup(String[] args) {
+        if (args.length != 3) {
+            println "Usage config SERVER USERNAME PASSWORD"
+        }
+
+        Properties p = new Properties()
+
+        p.setProperty("server", args[0])
+        p.setProperty("username", args[1])
+        p.setProperty("password", Base64.encodeBytes(args[2].getBytes()))
+
+        configFile.withOutputStream {p.store(it, "saved by archipel client")}
+
+    }
+
+    static def startVM(String[] args) {
+        Connection conn = connect()
+
         if (args.length != 1) {
             println "Usage USERNAME PASSWORD start VM_NAME"
         }
@@ -62,7 +99,9 @@ class ArchipelClient extends Thread {
         sendMessageTo(conn, "start", args[0])
     }
 
-    static def stopVM(Connection conn, String[] args) {
+    static def stopVM(String[] args) {
+        Connection conn = connect()
+
         if (args.length != 1) {
             println "Usage USERNAME PASSWORD stop VM_NAME"
         }
@@ -91,7 +130,7 @@ class ArchipelClient extends Thread {
     static def findVMByName(Connection conn, String name) {
         def id
 
-        conn.getRoster().entries.each {if (it.name == name) id = it.user}
+        conn.getRoster().entries.each { if (it.name == name) id = it.user }
 
         if (id == null)
             throw new RuntimeException("Could not find VM of name ${name}")
@@ -99,10 +138,12 @@ class ArchipelClient extends Thread {
         return id
     }
 
-    static void cloneVM(Connection conn, String[] args) {
+    static void cloneVM(String[] args) {
         if (args.length != 1) {
             println "Usage: USERNAME PASSWORD clone NEW_VM_NAME"
         }
+
+        Connection conn = connect()
 
         def newVM = args[0]
 
@@ -114,7 +155,7 @@ class ArchipelClient extends Thread {
 
         conn.addPacketListener(new SubscriptionListener(conn, newVM), new SubscriptionPacketFilter())
 
-        conn.getRoster().addRosterListener(new NewVMListener(conn, newVM, {shouldRun = false}))
+        conn.getRoster().addRosterListener(new NewVMListener(conn, newVM, { shouldRun = false }))
 
         if (smlpaasID == null) {
             System.err.println("Cannot locate smlpaas")
@@ -130,12 +171,14 @@ class ArchipelClient extends Thread {
         conn.sendPacket(packet)
     }
 
-    static void listVMs(Connection conn) {
+    static void listVMs() {
         println "Name: ID"
         println "========"
 
+        Connection conn = connect()
+
         conn.getRoster().getEntries().each {
-            if (it.groups.find {it.name == PAAS_GROUP}) {
+            if (it.groups.find { it.name == PAAS_GROUP }) {
                 println "${it.name}: ${it.user}"
             }
         }
