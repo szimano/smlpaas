@@ -148,10 +148,12 @@ def getFullPath(String path) {
 }
 
 def figureServer(String path) {
-	File file = new File(path)
+	File file = new File(new File(path).absolutePath)
+	
 	while (file != null) {
 		if (file.isDirectory()) {
-			File config = new File(CONFIG_FILE_NAME, file)
+			File config = new File(file, CONFIG_FILE_NAME)
+			
 			if (config.exists()) {
 				def props = new Properties()
 				config.withInputStream { 
