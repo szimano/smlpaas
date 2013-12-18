@@ -1,6 +1,8 @@
 #!/usr/bin/env groovy
 import static Constants.*
 
+SCRIPT_DIR = new File(getClass().protectionDomain.codeSource.location.path).parent
+
 if (args) {
 	switch(args[0]) {
 		case "d":
@@ -34,6 +36,37 @@ if (args) {
 		case "ssh":
 			sshCMD(args.drop(1))
 			break
+		case "l":
+		case "list":
+			listCMD()
+			break;
+		case "vm":
+			def newArgs = args.drop(1)
+			
+			if (newArgs.length == 0) {
+				println "Usage: smlpaas vm [command]"
+			}
+			else {
+				switch(newArgs[0]) {
+					case "create":
+						createCMD(newArgs.drop(1))
+						break
+					case "stop":
+						stopVMCMD(newArgs.drop(1))
+						break
+					case "start":
+						startVMCMD(newArgs.drop(1))
+						break
+					case "destroy":
+						destroyVMCMD(newArgs.drop(1))
+						break
+				}
+			}
+			break
+		case "configArchipel":
+		case "setupArchipel":
+			setupArchipelCMD(args.drop(1))
+			break
 		default:
 			println "Unknown command: '${args[0]}'"
 			break
@@ -46,6 +79,7 @@ else {
 class Constants {
     static final CONFIG_FILE_NAME = ".smlpaas"
 	static final PROFILES = ["tomcat7", "jar"/*, "wildfly8", "jboss7"*/]
+	static SCRIPT_DIR
 }
 
 def deployCMD(String[] args) {	
@@ -232,6 +266,63 @@ def runCMD(String cmd) {
 def runAndWaitCMD(String cmd) {
 	def process = runCMD(cmd)
 	process.waitFor()
+}
+
+def listCMD() {
+	runArchipelClient("list")
+}
+
+def setupArchipelCMD(String[] args) {
+	if (args.length != 3) {
+		println "USAGE: smlpaas setupArchipel SERVER USERNAME PASSWORD"
+	}
+	
+	runArchipelClient("setup ${args[0]} ${args[1]} ${args[2]}")
+}
+
+def createCMD(String[] args) {
+	if (args.length != 1) {
+		println "USAGE: smlpaas vm create NEW_VM_NAME"
+	}
+	else
+		runArchipelClient("clone ${args[0]}")
+}
+
+def stopVMCMD(String[] args) {
+	if (args.length != 1) {
+		println "USAGE: smlpaas vm stop VM_NAME"
+	}
+	else
+		runArchipelClient("stop ${args[0]}")
+}
+
+def startVMCMD(String[] args) {
+	if (args.length != 1) {
+		println "USAGE: smlpaas vm start VM_NAME"
+	}
+	else
+		runArchipelClient("start ${args[0]}")
+}
+
+def destroyVMCMD(String[] args) {
+	if (args.length != 1) {
+		println "USAGE: smlpaas vm destroy VM_NAME"
+	}
+	else {
+		def confirmation = System.console().readLine "Warning! You are about to destroy VM ${args[0]}. If you are really really sure you want to do it, type in 'baklazan':\n"
+		
+		if (confirmation == "baklazan") {
+			runArchipelClient("destroy ${args[0]}")
+		} else {
+			println "Skipping."
+		}
+	}
+}
+
+def runArchipelClient(String command) {
+	def archipelCMD = "java -jar ${SCRIPT_DIR}/archipel-client.jar ${command}"
+	
+	runAndWaitCMD(archipelCMD)
 }
 
 def pause() {
