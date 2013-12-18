@@ -36,10 +36,6 @@ if (args) {
 		case "ssh":
 			sshCMD(args.drop(1))
 			break
-		case "l":
-		case "list":
-			listCMD()
-			break;
 		case "vm":
 			def newArgs = args.drop(1)
 			
@@ -48,6 +44,10 @@ if (args) {
 			}
 			else {
 				switch(newArgs[0]) {
+					case "l":
+					case "list":
+						listCMD()
+						break;
 					case "create":
 						createCMD(newArgs.drop(1))
 						break
@@ -63,6 +63,9 @@ if (args) {
 				}
 			}
 			break
+		case "help":
+			printUsage()
+			break
 		case "configArchipel":
 		case "setupArchipel":
 			setupArchipelCMD(args.drop(1))
@@ -73,7 +76,31 @@ if (args) {
 	}
 }
 else {
-	println "usage\n smlpaas [command]"
+	printUsage()
+}
+
+def printUsage() {
+	println "usage:\n smlpaas [command]"
+	println "   where [command] can be one of"
+	println "     d, deploy: PATH_TO_FILE - deploys a file to server"
+	println "     config, setup: PATH SERVER_IP [PROFILE] [RUN_CMD] - sets up a smlpaas project in DIRECTORY, using SERVER_IP and optional PROFILE (default tomcat7, available: ${PROFILES}) and run command parameters (default memory settings). This will create .smlpaas file in the DIRECTORY."
+	println "     restart: [PROJECT_PATH] - stops and starts the server"
+	println "     t, tail: [PROJECT_PATH] - tails the log of the server"
+	println "     stop: [PROJECT_PATH] - stops the server"
+	println "     stopAll: [PROJECT_PATH] - stops all profiles on the server"
+	println "     start: [PROJECT_PATH] - starts the server"
+	println "     ar, addResource: PATH_TO_FILE PATH_ON_SERVER - copies file to the server, using the given path, relative to the profile root."
+	println "     ssh: prints out an ssh command to connect to the server"
+	println "     help: prints this help"
+	println "     configArchipel setupArchipel: SERVER USERNAME PASSWORD - creates in the home directory .smlpaas-archipel file with archipel client configuration - it's location, and user's username and password"
+	println "     vm: list of commands for VM management"
+	println "       l, list: lists all VMs created by the user and their state."
+	println "       create: NEW_VM_NAME - creates a new smlpaas VM"
+	println "       stop: VM_NAME - stops selected VM"
+	println "       start: VM_NAME - starts selected VM"
+	println "       destroy: VM_NAME - destroys selected VM"
+	println ""
+	println "[] mean optional parameters"
 }
 
 class Constants {
@@ -146,7 +173,7 @@ def figureServer(String path) {
 
 def setupCMD(String[] args) {	
 	if (args.length < 2 || args.length > 4) {
-		println "usage\n smlpaas setup DIRECTORY SERVER_IP [PROFILE] [RUN_PARAMS]"
+		println "usage\n smlpaas setup PATH SERVER_IP [PROFILE] [RUN_PARAMS]"
 	} else {
 		def dirName = args[0]
 		def ip = args[1]
